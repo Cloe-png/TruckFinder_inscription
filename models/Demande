@@ -1,0 +1,78 @@
+<?php
+require_once '../models/Utilisateur.php';
+require_once '../models/FoodTruck.php';
+require_once '../models/Demande.php';
+
+class UtilisateurController {
+    private $utilisateur;
+    private $foodtruck;
+    private $demande;
+
+    public function __construct($pdo) {
+        $this->utilisateur = new Utilisateur($pdo);
+        $this->foodtruck = new FoodTruck($pdo);
+        $this->demande = new Demande($pdo);
+    }
+
+    // Afficher le formulaire d'inscription
+    public function inscription() {
+        require '../views/utilisateur/inscription.php';
+    }
+
+    // Traiter l'inscription
+    public function traiterInscription() {
+        $nom = $_POST['nom'];
+        $email = $_POST['email'];
+        $mot_de_passe = password_hash($_POST['mot_de_passe'], PASSWORD_BCRYPT);
+        $nom_foodtruck = $_POST['nom_foodtruck'];
+        $description = $_POST['description'];
+        $type_cuisine = $_POST['type_cuisine'];
+        $adresse = $_POST['adresse'];
+        $telephone = $_POST['telephone'];
+        $logo = '/logos/default.png';
+
+        // 1. Inscrire l'utilisateur
+        $id_utilisateur = $this->utilisateur->inscrire($nom, $email, $mot_de_passe);
+
+        // 2. Créer le food truck
+        $id_foodtruck = $this->foodtruck->creer($id_utilisateur, $nom_foodtruck, $description, $type_cuisine, $adresse, $telephone, $logo);
+
+        // 3. Créer la demande d'inscription
+        $this->demande->creer($id_foodtruck);
+
+        header('Location: ../public/index.php?action=connexion&message=inscription_ok');
+    }
+
+    // Afficher le formulaire de connexion
+    public function connexion() {
+        require '../views/utilisateur/connexion.php';
+    }
+
+    // Traiter la connexion
+    public function traiterConnexion() {
+        $email = $_POST['email'];
+        $mot_de_passe = $_POST['mot_de_passe'];
+
+        $user = $this->utilisateur->trouverParEmail($email);
+
+        if ($user && password_verify($mot_de_passe, $user['mot_de_passe'])) {
+            session_start();
+            $_SESSION['id_utilisateur'] = $user['id_utilisateur'];
+            $_SESSION['role'] = $user['role'];
+
+            if ($user['role'] === 'admin') {
+                header('Location: ../public/index.php?action=admin_demandes');
+            } else {
+                $foodtruck = $this->foodtruck->trouverParUtilisateur($user['id_utilisateur']);
+                if ($foodtruck && $foodtruck['statut'] === 'approuvé') {
+                    header('Location: ../public/index.php?action=foodtruck_dashboard');
+                } else {
+                    header('Location: ../public/index.php?action=connexion&message=compte_non_valide');
+                }
+            }
+        } else {
+            header('Location: ../public/index.php?action=connexion&message=erreur_connexion');
+        }
+    }
+}
+?>
