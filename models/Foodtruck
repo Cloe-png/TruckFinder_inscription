@@ -1,0 +1,23 @@
+<?php
+class FoodTruck {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    // Créer un food truck
+    public function creer($id_utilisateur, $nom, $description, $type_cuisine, $adresse, $telephone, $logo) {
+        $stmt = $this->pdo->prepare("INSERT INTO FoodTrucks (id_utilisateur, nom_foodtruck, description, type_cuisine, adresse, telephone, logo) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$id_utilisateur, $nom, $description, $type_cuisine, $adresse, $telephone, $logo]);
+        return $this->pdo->lastInsertId();
+    }
+
+    // Trouver un food truck par ID utilisateur
+    public function trouverParUtilisateur($id_utilisateur) {
+        $stmt = $this->pdo->prepare("SELECT * FROM FoodTrucks WHERE id_utilisateur = ?");
+        $stmt->execute([$id_utilisateur]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+}
+?>
