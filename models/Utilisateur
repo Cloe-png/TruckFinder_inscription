@@ -1,0 +1,23 @@
+<?php
+class Utilisateur {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    // Inscrire un utilisateur
+    public function inscrire($nom, $email, $mot_de_passe, $role = 'foodtruck') {
+        $stmt = $this->pdo->prepare("INSERT INTO Utilisateurs (nom, email, mot_de_passe, role) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$nom, $email, $mot_de_passe, $role]);
+        return $this->pdo->lastInsertId();
+    }
+
+    // Trouver un utilisateur par email
+    public function trouverParEmail($email) {
+        $stmt = $this->pdo->prepare("SELECT * FROM Utilisateurs WHERE email = ?");
+        $stmt->execute([$email]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+}
+?>
