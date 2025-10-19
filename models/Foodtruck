@@ -6,18 +6,42 @@ class FoodTruck {
         $this->pdo = $pdo;
     }
 
-    // Créer un food truck
-    public function creer($id_utilisateur, $nom, $description, $type_cuisine, $adresse, $telephone, $logo) {
-        $stmt = $this->pdo->prepare("INSERT INTO FoodTrucks (id_utilisateur, nom_foodtruck, description, type_cuisine, adresse, telephone, logo) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$id_utilisateur, $nom, $description, $type_cuisine, $adresse, $telephone, $logo]);
+    public function creer($id_utilisateur, $nom_foodtruck, $description, $type_cuisine, $adresse, $telephone, $logo) {
+        $stmt = $this->pdo->prepare("
+            INSERT INTO foodtrucks (id_utilisateur, nom_foodtruck, description, type_cuisine, adresse, telephone, logo, statut)
+            VALUES (:id_utilisateur, :nom_foodtruck, :description, :type_cuisine, :adresse, :telephone, :logo, 'en_attente')
+        ");
+        $stmt->execute([
+            ':id_utilisateur' => $id_utilisateur,
+            ':nom_foodtruck' => $nom_foodtruck,
+            ':description' => $description,
+            ':type_cuisine' => $type_cuisine,
+            ':adresse' => $adresse,
+            ':telephone' => $telephone,
+            ':logo' => $logo
+        ]);
         return $this->pdo->lastInsertId();
     }
 
-    // Trouver un food truck par ID utilisateur
-    public function trouverParUtilisateur($id_utilisateur) {
-        $stmt = $this->pdo->prepare("SELECT * FROM FoodTrucks WHERE id_utilisateur = ?");
-        $stmt->execute([$id_utilisateur]);
+    public function getFoodtruckData($userId) {
+        $stmt = $this->pdo->prepare("SELECT * FROM foodtrucks WHERE id_utilisateur = :id_utilisateur");
+        $stmt->bindParam(':id_utilisateur', $userId, PDO::PARAM_INT);
+        $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function updateMenu($foodtruckId, $menu) {
+        $stmt = $this->pdo->prepare("UPDATE foodtrucks SET menu = :menu WHERE id_foodtruck = :id_foodtruck");
+        $stmt->bindParam(':menu', $menu, PDO::PARAM_STR);
+        $stmt->bindParam(':id_foodtruck', $foodtruckId, PDO::PARAM_INT);
+        return $stmt->execute();
+    }
+
+    public function updateHoraires($foodtruckId, $horaires) {
+        $stmt = $this->pdo->prepare("UPDATE foodtrucks SET horaires = :horaires WHERE id_foodtruck = :id_foodtruck");
+        $stmt->bindParam(':horaires', $horaires, PDO::PARAM_STR);
+        $stmt->bindParam(':id_foodtruck', $foodtruckId, PDO::PARAM_INT);
+        return $stmt->execute();
     }
 }
 ?>
