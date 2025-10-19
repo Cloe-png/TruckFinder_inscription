@@ -1,87 +1,134 @@
 <?php
 session_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 require_once '../config/database.php';
+require_once '../controllers/UtilisateurController.php';
+require_once '../controllers/AdminController.php';
 
-// Gestion des actions
+$controller = new UtilisateurController($pdo);
+$adminController = new AdminController($pdo);
+
 $action = $_GET['action'] ?? 'home';
 $alert = $_GET['alert'] ?? null;
 $content = '';
 $navigation = '';
-$title = 'FoodTruck App';
-$demandes_html = '';
-
-// Traitement des formulaires (inchangé)
-if ($action === 'do_login') {
-    // ... (logique de connexion)
-}
-else if ($action === 'do_register') {
-    // ... (logique d'inscription)
-}
-else if ($action === 'deconnexion') {
-    session_destroy();
-    header('Location: index.php?alert=logout_success');
-    exit;
-}
-
-// Préparation de la navigation
-if (isset($_SESSION['role'])) {
-    $navigation = '<a href="index.php?action=deconnexion" class="btn btn-danger">Déconnexion</a>';
-    if ($_SESSION['role'] === 'admin') {
-        $navigation .= ' <a href="index.php?action=admin" class="btn btn-primary">Admin</a>';
-    }
-} else {
-    $navigation = '<a href="index.php" class="btn btn-primary">Accueil</a>';
-}
-
-// Préparation des alertes
+$title = 'TruckFinder';
 $alert_html = '';
+
 if ($alert) {
     $alerts = [
         'login_success' => ['message' => 'Connexion réussie !', 'type' => 'success'],
-        'login_error' => ['message' => 'Email ou mot de passe incorrect.', 'type' => 'error'],
-        'register_success' => ['message' => 'Inscription réussie ! En attente de validation.', 'type' => 'success'],
-        'logout_success' => ['message' => 'Déconnexion réussie.', 'type' => 'success']
+        'login_error' => ['message' => 'Email ou mot de passe incorrect.', 'type' => 'danger'],
+        'register_success' => ['message' => 'Inscription réussie ! Votre compte est en attente de validation.', 'type' => 'success'],
+        'register_error' => ['message' => 'Erreur lors de l\'inscription.', 'type' => 'danger'],
+        'deconnexion' => ['message' => 'Déconnexion réussie.', 'type' => 'success'],
+        'access_denied' => ['message' => 'Accès refusé.', 'type' => 'danger'],
+        'compte_non_valide' => ['message' => 'Votre compte est en attente de validation par un administrateur.', 'type' => 'warning'],
+        'empty_fields' => ['message' => 'Veuillez remplir tous les champs.', 'type' => 'danger'],
+        'invalid_role' => ['message' => 'Rôle utilisateur invalide.', 'type' => 'danger']
     ];
-    $alert_html = '<div class="alert alert-' . ($alerts[$alert]['type'] === 'error' ? 'error' : 'success') . '">' . $alerts[$alert]['message'] . '</div>';
+
+    if (isset($alerts[$alert])) {
+        $alert_html = '<div class="alert alert-' . $alerts[$alert]['type'] . '">' . $alerts[$alert]['message'] . '</div>';
+    }
+    if (isset($_GET['detail'])) {
+        $alert_html .= '<div class="alert alert-danger">' . htmlspecialchars($_GET['detail']) . '</div>';
+    }
 }
 
-// Chargement de la vue appropriée
-if ($action === 'login') {
-    $title = 'Connexion';
-    $content = file_get_contents('../views/login.php');
-} else if ($action === 'register') {
-    $title = 'Inscription';
-    $content = file_get_contents('../views/register.php');
-} else if ($action === 'admin') {
-    if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+if (isset($_SESSION['role'])) {
+    $navigation = '<li class="nav-item"><a class="nav-link" href="index.php?action=deconnexion">Déconnexion</a></li>';
+    if ($_SESSION['role'] === 'admin') {
+        $navigation .= '<li class="nav-item"><a class="nav-link" href="index.php?action=admin_demandes">Admin</a></li>';
+    } else {
+        $navigation .= '<li class="nav-item"><a class="nav-link" href="index.php?action=foodtruck_dashboard">Mon FoodTruck</a></li>';
+    }
+} else {
+    $navigation = '<li class="nav-item"><a class="nav-link" href="index.php?action=login">Connexion</a></li>
+                   <li class="nav-item"><a class="nav-link" href="index.php?action=register">S\'inscrire</a></li>';
+}
+
+switch ($action) {
+    case 'login':
+        $title = 'Connexion';
+        ob_start();
+        include '../views/login.php';
+        $content = ob_get_clean();
+        break;
+
+    case 'register':
+        $title = 'Inscription';
+        ob_start();
+        include '../views/register.php';
+        $content = ob_get_clean();
+        break;
+
+    case 'do_register':
+        $controller->traiterInscription();
+        break;
+
+    case 'do_login':
+        $controller->traiterConnexion();
+        break;
+
+    case 'foodtruck_dashboard':
+        if (!isset($_SESSION['id_utilisateur']) || $_SESSION['role'] !== 'foodtruck') {
+            header('Location: index.php?alert=access_denied');
+            exit;
+        }
+        $title = 'Mon FoodTruck';
+        ob_start();
+        $controller->dashboard();
+        $content = ob_get_clean();
+        break;
+
+    // Dans la section des cases de ton switch
+case 'admin_demandes':
+    if (!isset($_SESSION['id_utilisateur']) || $_SESSION['role'] !== 'admin') {
         header('Location: index.php?alert=access_denied');
         exit;
     }
-    $title = 'Admin - Demandes';
-    // Exemple de données (à remplacer par une requête SQL)
-    $demandes = [
-        ['id' => 1, 'nom_foodtruck' => 'Burger King', 'nom' => 'Jean', 'email' => 'jean@example.com'],
-        ['id' => 2, 'nom_foodtruck' => 'Pizza Truck', 'nom' => 'Marie', 'email' => 'marie@example.com']
-    ];
-    foreach ($demandes as $demande) {
-        $demandes_html .= '
-            <tr>
-                <td>' . $demande['nom_foodtruck'] . '</td>
-                <td>' . $demande['nom'] . '</td>
-                <td>' . $demande['email'] . '</td>
-                <td>
-                    <a href="index.php?action=valider&id=' . $demande['id'] . '&statut=approuvé" class="btn btn-success">Approuver</a>
-                    <a href="index.php?action=valider&id=' . $demande['id'] . '&statut=rejeté" class="btn btn-danger">Rejeter</a>
-                </td>
-            </tr>
-        ';
+    $title = 'Administration - Demandes en attente';
+    ob_start();
+    $adminController->listerDemandes();
+    $content = ob_get_clean();
+    break;
+
+    case 'admin_foodtrucks':
+    if (!isset($_SESSION['id_utilisateur']) || $_SESSION['role'] !== 'admin') {
+        header('Location: index.php?alert=access_denied');
+        exit;
     }
-    $content = str_replace('<!--{DEMANDES}-->', $demandes_html, file_get_contents('../views/admin.html'));
-} else {
-    $content = file_get_contents('../views/home.php');
+    $title = 'Administration - Tous les Foodtrucks';
+    ob_start();
+    $adminController->listerFoodtrucks();
+    $content = ob_get_clean();
+    break;
+
+    case 'valider_demande':
+        if (!isset($_SESSION['id_utilisateur']) || $_SESSION['role'] !== 'admin') {
+            header('Location: index.php?alert=access_denied');
+            exit;
+        }
+        $adminController->validerDemande();
+        break;
+
+    case 'deconnexion':
+        session_unset();
+        session_destroy();
+        header('Location: index.php?alert=deconnexion');
+        exit;
+
+    default:
+        $title = 'Accueil';
+        ob_start();
+        include '../views/home.php';
+        $content = ob_get_clean();
+        break;
 }
 
-// Affichage final
+// Affichage du layout
 $layout = file_get_contents('../views/layout.php');
 $layout = str_replace('{TITLE}', $title, $layout);
 $layout = str_replace('<!--{NAVIGATION}-->', $navigation, $layout);
