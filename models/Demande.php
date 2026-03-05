@@ -1,0 +1,59 @@
+<?php
+class Demande {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    public function creer($id_foodtruck) {
+        try {
+            $stmt = $this->pdo->prepare("INSERT INTO demandesinscription (id_foodtruck, statut, date_demande) VALUES (?, 'en_attente', NOW())");
+            $stmt->execute([$id_foodtruck]);
+            return $this->pdo->lastInsertId();
+        } catch (Exception $e) {
+            error_log('Erreur lors de la creation de la demande: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    public function listerEnAttente() {
+        $stmt = $this->pdo->prepare(
+            "SELECT ft.id_foodtruck, ft.nom_foodtruck, ft.description, ft.type_cuisine, ft.adresse, ft.telephone, ft.logo,
+                    u.nom, u.email, u.id_utilisateur,
+                    COALESCE(d.statut, ft.statut) AS statut,
+                    COALESCE(d.date_demande, u.date_creation) AS date_demande
+             FROM foodtrucks ft
+             JOIN utilisateurs u ON ft.id_utilisateur = u.id_utilisateur
+             LEFT JOIN demandesinscription d ON d.id_foodtruck = ft.id_foodtruck
+             WHERE ft.statut = 'en_attente'
+             ORDER BY date_demande DESC"
+        );
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function valider($id_demande, $statut) {
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare('UPDATE demandesinscription SET statut = ? WHERE id_demande = ?');
+            $stmt->execute([$statut, $id_demande]);
+
+            $stmt = $this->pdo->prepare(
+                'UPDATE foodtrucks
+                 SET statut = ?
+                 WHERE id_foodtruck = (
+                    SELECT id_foodtruck FROM demandesinscription WHERE id_demande = ?
+                 )'
+            );
+            $stmt->execute([$statut, $id_demande]);
+
+            $this->pdo->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+}
+?>
