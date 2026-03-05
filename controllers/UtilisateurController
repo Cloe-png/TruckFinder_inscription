@@ -1,0 +1,150 @@
+<?php
+require_once '../models/Utilisateur.php';
+require_once '../models/FoodTruck.php';
+require_once '../models/Demande.php';
+
+class UtilisateurController {
+    private $utilisateur;
+    private $foodtruck;
+    private $demande;
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+        $this->utilisateur = new Utilisateur($pdo);
+        $this->foodtruck = new FoodTruck($pdo);
+        $this->demande = new Demande($pdo);
+    }
+
+    public function traiterInscription() {
+        session_start();
+        try {
+            $nom = $_POST['nom'];
+            $email = $_POST['email'];
+            $mot_de_passe = password_hash($_POST['mot_de_passe'], PASSWORD_BCRYPT);
+            $nom_foodtruck = $_POST['nom_foodtruck'];
+            $description = $_POST['description'];
+            $type_cuisine = $_POST['type_cuisine'];
+            $adresse = $_POST['adresse'];
+            $telephone = $_POST['telephone'];
+            $logo = '/logos/default.png';
+
+            $id_utilisateur = $this->utilisateur->inscrire($nom, $email, $mot_de_passe);
+            $id_foodtruck = $this->foodtruck->creer($id_utilisateur, $nom_foodtruck, $description, $type_cuisine, $adresse, $telephone, $logo);
+
+            $menuBase = [
+                [
+                    'nom' => 'Menu du jour',
+                    'description' => 'Notre spécialité du moment',
+                    'prix' => 12.50,
+                    'image' => 'https://via.placeholder.com/150?text=Menu+du+jour'
+                ],
+                [
+                    'nom' => 'Boisson',
+                    'description' => 'Boisson au choix',
+                    'prix' => 2.50,
+                    'image' => 'https://via.placeholder.com/150?text=Boisson'
+                ],
+                [
+                    'nom' => 'Dessert',
+                    'description' => 'Dessert maison',
+                    'prix' => 4.00,
+                    'image' => 'https://via.placeholder.com/150?text=Dessert'
+                ]
+            ];
+
+            $menuJson = json_encode($menuBase);
+            $this->foodtruck->updateMenu($id_foodtruck, $menuJson);
+            $this->demande->creer($id_foodtruck);
+
+            header('Location: index.php?action=login&alert=register_success');
+            exit();
+        } catch (Exception $e) {
+            error_log("Erreur d'inscription: " . $e->getMessage());
+            header('Location: index.php?action=register&alert=register_error&detail=' . urlencode($e->getMessage()));
+            exit();
+        }
+    }
+
+    public function traiterConnexion() {
+        session_start();
+
+        if (empty($_POST['email']) || empty($_POST['mot_de_passe'])) {
+            header('Location: index.php?action=login&alert=empty_fields');
+            exit();
+        }
+
+        $email = $_POST['email'];
+        $mot_de_passe = $_POST['mot_de_passe'];
+
+        $user = $this->utilisateur->trouverParEmail($email);
+
+        if (!$user || !password_verify($mot_de_passe, $user['mot_de_passe'])) {
+            header('Location: index.php?action=login&alert=login_error');
+            exit();
+        }
+
+        $_SESSION['id_utilisateur'] = $user['id_utilisateur'];
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['email'] = $user['email'];
+
+        if ($user['role'] === 'admin') {
+            header('Location: index.php?action=admin_demandes');
+            exit();
+        }
+        elseif ($user['role'] === 'foodtruck') {
+            $stmt = $this->pdo->prepare("SELECT statut FROM foodtrucks WHERE id_utilisateur = ?");
+            $stmt->execute([$user['id_utilisateur']]);
+            $foodtruckStatut = $stmt->fetchColumn();
+
+            if ($foodtruckStatut !== 'approuvé') {
+                header('Location: index.php?action=login&alert=compte_non_valide');
+                exit();
+            }
+
+            header('Location: index.php?action=foodtruck_dashboard');
+            exit();
+        }
+        else {
+            session_unset();
+            session_destroy();
+            header('Location: index.php?action=login&alert=invalid_role');
+            exit();
+        }
+    }
+
+    public function dashboard() {
+        if (!isset($_SESSION['id_utilisateur'])) {
+            header("Location: index.php?action=login");
+            exit();
+        }
+
+        if ($_SESSION['role'] === 'admin') {
+            header("Location: index.php?action=admin_demandes");
+            exit();
+        }
+
+        if ($_SESSION['role'] !== 'foodtruck') {
+            header("Location: index.php?action=login");
+            exit();
+        }
+
+        $userId = $_SESSION['id_utilisateur'];
+        $foodtruckData = $this->foodtruck->getFoodtruckData($userId);
+
+        if (empty($foodtruckData)) {
+            die("Aucune donnée de foodtruck trouvée pour cet utilisateur. Veuillez contacter l'administrateur.");
+        }
+
+        $menu = [];
+        if (!empty($foodtruckData['menu'])) {
+            $decodedMenu = json_decode($foodtruckData['menu'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decodedMenu)) {
+                $menu = $decodedMenu;
+            }
+        }
+
+        include '../views/foodtruck.php';
+    }
+}
+?>

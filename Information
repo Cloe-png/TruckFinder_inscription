@@ -1,0 +1,11 @@
+Problème de connexion administrateur et gestion des statuts
+
+1. Problème identifié :
+L'utilisateur administrateur (role = 'admin') ne parvient pas à se connecter correctement à la plateforme.
+Allez sur : http://localhost/TruckFinder/views/admin.php directement.
+
+2. Solution temporaire pour la validation des foodtrucks :
+Pour contourner ce problème et valider manuellement un foodtruck, il est nécessaire de :
+
+Modifier directement en base de données le statut du foodtruck concerné
+Remplacer la valeur 'en_attente' par 'approuvé' dans la table foodtrucks (colonne statut)
