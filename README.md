@@ -35,39 +35,6 @@ Application web PHP (MVC léger) pour la gestion de foodtrucks :
 - Bootstrap 5
 - Leaflet + OpenStreetMap
 
-## Structure du projet
-
-```txt
-TruckFinder/
-  config/
-    database.php
-    truckfinder.sql
-  controllers/
-    UtilisateurController.php
-    AdminController.php
-  models/
-    Utilisateur.php
-    Foodtruck.php
-    Demande.php
-  views/
-    index.php
-    layout.php
-    home.php
-    login.php
-    register.php
-    foodtruck.php
-    edit_menu.php
-    admin.php
-```
-
-## Installation locale
-
-1. Cloner le projet et placer le dossier dans `c:\wamp64\www\`.
-2. Créer la base `truckfinder`.
-3. Importer le schéma complet : `config/truckfinder.sql`.
-4. Vérifier la connexion DB dans `config/database.php`.
-5. Ouvrir l'app via WAMP.
-
 ## Base de données
 
 ### Tables principales
@@ -80,6 +47,3 @@ TruckFinder/
 - Les statuts utilisent : `en_attente`, `approuve`, `rejete`.
 - Les adresses multiples sont stockées dans `foodtruck_adresses`.
 - L'adresse active (présence) est marquée par `est_present = 1`.
-
-## Auteur
-Projet réalisé et maintenu pour TruckFinder.
