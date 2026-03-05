@@ -255,7 +255,6 @@ if (isset($horaires[$jourActuel])) {
         }
     });
 
-    // Focus on the currently selected "present here" address.
     if (activeAddress && activeAddress.marker) {
         map.setView([activeAddress.lat, activeAddress.lng], 15);
         activeAddress.marker.openPopup();
@@ -264,7 +263,6 @@ if (isset($horaires[$jourActuel])) {
         map.fitBounds(group.getBounds().pad(0.2));
     }
 
-    // If active address has no saved coordinates, geocode it in browser.
     if (activeAddress && !activeAddress.marker && activeAddress.adresse) {
         const query = encodeURIComponent(activeAddress.adresse);
         fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${query}`)
